@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klickitat County, WA Map Vis</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 100vh; }
+        .legend {
+            background: white;
+            padding: 10px;
+            font-size: 12px;
+            line-height: 18px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script>
+    // Define tile layers
+    const ndviTiles = "https://guybh10.github.io/squirrelopt-tiles/NDVI_tiles/{z}/{x}/{y}.png";
+    const basemapTiles = "https://guybh10.github.io/squirrelopt-tiles/Basemap_tiles_QGIS/Basemap/{z}/{x}/{y}.png";
+
+    // Initialize map
+    var map = L.map('map').setView([45.858146, -120.832838], 10);
+
+    // Add basemap layer
+    var baseMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://carto.com/">CartoDB</a>'
+    }).addTo(map);
+
+    //Add Satellite Image tiles
+    var satLayer = L.tileLayer(basemapTiles, {
+        attribution: "Satellite Image"
+    }).addTo(map);
+
+    // Add NDVI tiles
+    var ndviLayer = L.tileLayer(ndviTiles, {
+        attribution: "NDVI 2024"
+    }).addTo(map);
+
+    // Define NDVI legend
+    var ndviLegend = L.control({ position: "bottomright" });
+
+    ndviLegend.onAdd = function(map) {
+        var div = L.DomUtil.create("div", "legend");
+        div.innerHTML += "<b>NDVI Classification</b><br>";
+        div.innerHTML += '<i style="background: #a77640; width: 10px; height: 10px; display: inline-block;"></i> ≥ 0.2<br>';
+        div.innerHTML += '<i style="background: #377193; width: 10px; height: 10px; display: inline-block;"></i> ≥ 0.5<br>';
+        div.innerHTML += '<i style="background: #de546c; width: 10px; height: 10px; display: inline-block;"></i> ≥ 0.6<br>';
+        div.innerHTML += '<i style="background: #7757e9; width: 10px; height: 10px; display: inline-block;"></i> ≥ 0.7<br>';
+        div.innerHTML += '<i style="background: #9fcc7a; width: 10px; height: 10px; display: inline-block;"></i> ≥ 1<br>';
+        return div;
+    };
+
+    // Load GeoJSON points
+    var pointsUrl = "https://raw.githubusercontent.com/GuyBH10/squirrelopt-tiles/main/popups.geojson";
+
+    fetch(pointsUrl)
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                pointToLayer: function(feature, latlng) {
+                    var popupContent = `<b>NDVI 2024:</b> ${feature.properties.NDVI_2024}<br>
+                                        <b>NDVI 2017:</b> ${feature.properties.NDVI_2017}<br>
+                                        <b>Habitat:</b> ${feature.properties.Habitat || "NA"}<br>
+                                        <b>Owner Class:</b> ${feature.properties.OwnerClass || "NA"}`;
+                    
+                    return L.circleMarker(latlng, {
+                        radius: 5,
+                        color: "blue",
+                        fill: true,
+                        fillOpacity: 0.7
+                    }).bindPopup(popupContent);
+                }
+            }).addTo(map);
+        });
+
+    // Load AOI GeoJSON and display as an outline
+    var aoiUrl = "https://raw.githubusercontent.com/GuyBH10/squirrelopt-tiles/main/AOI.geojson";
+
+    fetch(aoiUrl)
+        .then(response => response.json())
+        .then(data => {
+            L.geoJSON(data, {
+                style: function() {
+                    return {
+                        color: "red",
+                        weight: 2,
+                        opacity: 1,
+                        fill: false  // Ensure only outline is shown
+                    };
+                }
+            }).addTo(map);
+        });
+
+    // Add layer control
+    L.control.layers({
+        "Base Map": baseMap
+    }, {
+        "2024 Satellite Image": satLayer
+    }, {
+        "2024 NDVI": ndviLayer
+    }, { collapsed: false }).addTo(map);
+
+    // Add NDVI legend
+    ndviLegend.addTo(map);
+</script>
+
+</body>
+</html>
